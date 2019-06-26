@@ -15,31 +15,24 @@
 # Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-
-import logging
 from pkipplib import pkipplib
-
 from gevent.server import StreamServer
-
-logger = logging.getLogger(__name__)
+from argparse import ArgumentParser
 
 
 class PrintServer(object):
 
-    def __init__(self):
-        pass
-
     def handle(self, sock, address):
-        print address
+        print('Handling connection from (%s)' % address)
         data = sock.recv(8192)
-        print repr(data)
+        print('Received (%s)' % repr(data))
         try:
             body = data.split('\r\n\r\n', 1)[1]
         except IndexError:
             body = data
         request = pkipplib.IPPRequest(body)
         request.parse()
-        print request
+        print('The request was (%s)' % request)
         request = pkipplib.IPPRequest(operation_id=pkipplib.CUPS_GET_DEFAULT)
         request.operation["attributes-charset"] = ("charset", "utf-8")
         request.operation["attributes-natural-language"] = ("naturalLanguage", "en-us")
@@ -48,11 +41,31 @@ class PrintServer(object):
     def get_server(self, host, port):
         connection = (host, port)
         server = StreamServer(connection, self.handle)
-        logger.info('LPR server started on: {0}'.format(connection))
+        print('LPR server started on: {0}'.format(connection))
         return server
 
 
-if __name__ == "__main__":
+def main():
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--host',
+        dest='host',
+        default='127.0.0.1',
+        help='use this to specify the host to listen on'
+    )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=9100,
+        help='use this to specify the port to listen on',
+        dest='port'
+    )
+    args = parser.parse_args()
+
     ps = PrintServer()
-    print_server = ps.get_server("localhost", 9100)
+    print_server = ps.get_server(args.host, args.port)
     print_server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()
